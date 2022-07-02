@@ -1,32 +1,29 @@
-import { createContext,useState } from "react";
-import {v4 as uuidv4} from 'uuid'
+import { createContext,useState,useEffect } from "react";
+
 
 const FeedbackContext = createContext()
 
 export const FeedbackProvider = ({children}) => {
-    const [feedback,setFeedback] = useState([
-        {
-            id:1,
-            text:'This is feedback item1',
-            rating: 10
-        },
-        {
-            id:2,
-            text:'This is feedback item2',
-            rating: 8
-        },
-        {
-            id:3,
-            text:'This is feedback item3',
-            rating: 7
-        }
-    ])
+    const[isLoading, setIsLoading] = useState(true)
+    const [feedback,setFeedback] = useState([])
     //Sets items to be updated
     const [feedbackEdit, setFeedbackEdit] = useState({
         item:{},
         edit: false
     })
-    //Add feedback
+    useEffect(()=> {
+        fetchFeedback()
+    },[]) // array of dependency which is empty , only want to run once when is loads
+    //whith out ,[], the function keeps running unnecessarily  
+
+    //Fetch Feedback
+    const fetchFeedback = async () => {
+        const response = await fetch ("/feedback?_sort=id&_order=desc") //sorts by the id and the order of descending
+        const data = await response.json() // fetch api
+        setFeedback(data)
+        setIsLoading(false)
+    }
+    //Edit feedback
     const editFeedback = (item) => {
         setFeedbackEdit({
             item,
@@ -34,23 +31,38 @@ export const FeedbackProvider = ({children}) => {
         })
     }
     //Delete Feedback
-    const deleteFeedback = (id) => {
+    const deleteFeedback = async (id) => {
         if(window.confirm('are you sure you want to delete?')){
             // filter , filters out items with a certain id
             //will return all items exept item with the certain id 
+            await fetch(`/feedback/${id}`,{method:'DELETE'})
             setFeedback(feedback.filter((item) => item.id !== id ))
         }
     }
     //Add feedback
-    const addFeedback = (newFeedback)=> {
-        newFeedback.id = uuidv4()
-        setFeedback([newFeedback,...feedback])
-        console.log(newFeedback)
+    const addFeedback = async (newFeedback)=> {
+        const response = await fetch('/feedback',{
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json',
+            },
+            body:JSON.stringify(newFeedback)
+        })
+        const data = await response.json()
+        setFeedback([data,...feedback])
     }
     //update Feedback Item
-    const updateFeedback = (id, updItem) => {
+    const updateFeedback = async (id, updItem) => {
+        const response = await fetch(`/feedback/${id}`,{
+            method:'PUT',
+            headers:{
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updItem)
+        })
+        const data = await response.json()
         setFeedback(feedback.map((item)=> (item.id === id ? {
-            ...item, ...updItem}:item))
+            ...item, ...data}:item))
         )
     }
 
@@ -60,7 +72,8 @@ export const FeedbackProvider = ({children}) => {
         addFeedback,
         editFeedback,
         feedbackEdit,
-        updateFeedback
+        updateFeedback,
+        isLoading
     }}>
       {children}  
     </FeedbackContext.Provider>
